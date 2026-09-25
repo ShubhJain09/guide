@@ -1,3 +1,5 @@
+import json
+
 from django.core.cache import cache
 from django.db import connection
 from django.test import TestCase
@@ -37,9 +39,27 @@ class TestLLMsTxtViews(TestCase):
         self.assertIn(self.content_page.title.encode(), response.content)
 
     def test_llms_full_txt_does_not_fetch_body_per_page(self):
-        ContentPageFactory(parent=self.home_page, title="Second page")
-        ContentPageFactory(parent=self.home_page, title="Third page")
-        ContentPageFactory(parent=self.home_page, title="Fourth page")
+        ContentPageFactory(
+            parent=self.home_page,
+            title="Second page",
+            body=json.dumps(
+                [{"type": "text", "value": "<p>Second page body content.</p>"}]
+            ),
+        )
+        ContentPageFactory(
+            parent=self.home_page,
+            title="Third page",
+            body=json.dumps(
+                [{"type": "text", "value": "<p>Third page body content.</p>"}]
+            ),
+        )
+        ContentPageFactory(
+            parent=self.home_page,
+            title="Fourth page",
+            body=json.dumps(
+                [{"type": "text", "value": "<p>Fourth page body content.</p>"}]
+            ),
+        )
 
         cache.clear()
 
@@ -55,6 +75,9 @@ class TestLLMsTxtViews(TestCase):
         ]
 
         self.assertLessEqual(len(body_queries), 1)
+        self.assertIn(b"Second page body content.", response.content)
+        self.assertIn(b"Third page body content.", response.content)
+        self.assertIn(b"Fourth page body content.", response.content)
 
     def test_responses_are_cached(self):
         for path, template_name in (
